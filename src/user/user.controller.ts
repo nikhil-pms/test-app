@@ -6,11 +6,13 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LogInUserDto } from './dto/login-user.dto';
+import { Response } from 'express';
 
 @Controller('user')
 export class UserController {
@@ -22,8 +24,8 @@ export class UserController {
   }
 
   @Post('login')
-  login(@Body() logInDto: LogInUserDto) {
-    return this.userService.login(logInDto);
+  login(@Body() logInDto: LogInUserDto, @Res() res: Response) {
+    return this.userService.login(logInDto, res);
   }
 
   @Get()

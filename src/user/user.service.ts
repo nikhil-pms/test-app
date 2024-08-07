@@ -6,10 +6,14 @@ import { User } from './schemas/user.schema';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { LogInUserDto } from './dto/login-user.dto';
+import { JwtService } from '@nestjs/jwt';
+import { Response } from 'express';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private model: Model<User>) {}
+  constructor(@InjectModel(User.name) private model: Model<User>,
+  private jwtService: JwtService,
+) { }
   async create(createUserDto: CreateUserDto) {
     const data = await this.model.find({ email: createUserDto.email });
     const regex: RegExp =
@@ -31,16 +35,48 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    return this.model.create({ ...createUserDto, password: hashedPassword });
+    const createUser = await this.model.create({ ...createUserDto, password: hashedPassword })
+
+    return createUser
   }
 
-  async login(logInDto: LogInUserDto) {
+  async login(logInDto: LogInUserDto, res: Response) {
+    console.log(logInDto);
+    
     const data = await this.model.findOne({ email: logInDto.email });
 
-    if (await bcrypt.compare(logInDto.password, data.password)) {
-      return data;
+    console.log(data);
+    
+
+    if (!data) {
+      throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
     }
-    throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
+
+
+    const match = await bcrypt.compare(logInDto.password, data.password)
+
+    if (!match) {
+      throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
+    }
+
+    const token = await this.jwtService.sign({email: data.email})
+
+    res.cookie('accessToken', token, {
+      expires: new Date(Date.now() + 3600000), // 1 hour
+      sameSite: 'strict',
+      httpOnly: true,
+    });
+
+    console.log(token);
+    
+
+    res.status(201)
+
+    res.send({
+      token: token
+    })
+    
+
   }
 
   findAll() {
